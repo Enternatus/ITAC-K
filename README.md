@@ -9,7 +9,7 @@
 
 <br>
 <div align="center">
-  <img src="figures/ITAC_K_Architecture.jpg" alt="ITAC-K Architecture Diagram" width="100%" />
+  <img src="figures/ITAC_K_Architecture_Flow.jpg" alt="ITAC-K Architecture Diagram" width="100%" />
 </div>
 <br>
 
@@ -18,6 +18,44 @@
 ITAC-K is a distributed control architecture designed for physical edge nodes (e.g., ESP32 microcontrollers). It manages resource allocation and policy selection under highly uncertain, adversarial, and rapidly changing environmental regimes.
 
 ## Architecture
+### System Flow Diagram
+`mermaid
+graph TD
+    classDef hardware fill:#f3f4f6,stroke:#6b7280,stroke-width:2px;
+    classDef logic fill:#eff6ff,stroke:#3b82f6,stroke-width:2px;
+    classDef action fill:#fdf4ff,stroke:#d946ef,stroke-width:2px;
+    classDef swarm fill:#f0fdf4,stroke:#22c55e,stroke-width:2px;
+
+    subgraph Physical Edge Node
+        S[Ultrasonic Sensors]:::hardware --> |Raw Signal| Pre[Majority Debounce]:::hardware
+        Pre --> |t, state| V[Six-State Volatility Engine]:::logic
+    end
+
+    subgraph ITAC-K Core Logic
+        V --> |V_env, kinematics| P[Predictive Reliability]:::logic
+        P --> |e_t, b_t, c_t| A[Policy-Admissibility State]:::logic
+        A --> |p_ij, intervals| D[Uncertainty Debt Tracker]:::logic
+        D --> |D_eff| Arb{Information Arbitrator}:::logic
+    end
+
+    subgraph Action Arbitration
+        Arb -->|Confident| E[1. Exploit: Allocate]:::action
+        Arb -->|Boundary Overlap| L[2. Local Physical Probe]:::action
+        Arb -->|Peer Available| R[3. Remote Substitute]:::action
+    end
+
+    subgraph ESP-NOW Swarm
+        R -.-> |Context Request| Swarm((Peer Nodes)):::swarm
+        Swarm -.-> |Evidence Certificate| Q{Qualification Gate}:::swarm
+        Q -->|Pass: Sim > 0.80| Accept[Bayesian Update]:::logic
+        Q -->|Fail| Discard[Discard]:::hardware
+    end
+
+    L --> Accept
+    E --> Accept
+    Accept --> |Recursive Feedback| V
+`
+
 The core system is built on bounded recursive state updates (with respect to stream length) and operates through:
 1. **Six-State Volatility Engine** ($V_{env}$)
 2. **Predictive Reliability State**
@@ -61,4 +99,5 @@ python benchmarks/run_benchmark.py --config configs/final_frozen.json --seeds 10
 *   `/configs/` - The comprehensive, frozen benchmark parameters.
 *   `/reports/` - Detailed ablation, complexity, and patent-evidence documentation.
 *   `/results/final/` - The raw CSV/PNG outputs from the final evaluation.
+
 
