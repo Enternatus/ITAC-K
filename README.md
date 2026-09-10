@@ -7,6 +7,13 @@
   </p>
 </div>
 
+<br>
+<div align="center">
+  <img src="figures/ITAC_K_Architecture.jpg" alt="ITAC-K Architecture Diagram" width="100%" />
+</div>
+<br>
+
+
 ## What is ITAC-K?
 ITAC-K is a distributed control architecture designed for physical edge nodes (e.g., ESP32 microcontrollers). It manages resource allocation and policy selection under highly uncertain, adversarial, and rapidly changing environmental regimes.
 
@@ -54,3 +61,4 @@ python benchmarks/run_benchmark.py --config configs/final_frozen.json --seeds 10
 *   `/configs/` - The comprehensive, frozen benchmark parameters.
 *   `/reports/` - Detailed ablation, complexity, and patent-evidence documentation.
 *   `/results/final/` - The raw CSV/PNG outputs from the final evaluation.
+

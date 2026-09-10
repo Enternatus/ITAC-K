@@ -1,5 +1,8 @@
 # ITAC-K Architecture
 
+![ITAC-K Architecture Diagram](../figures/ITAC_K_Architecture.jpg)
+
+
 ## Mechanism Status Tracker
 *   **Volatility Engine:** ACTIVE + VALIDATED
 *   **Policy-Admissibility Relation:** ACTIVE + VALIDATED
@@ -23,3 +26,4 @@
 | Remote certificate | `struct PeerEvidence` |
 | Equivalence Gate | `qualifyEvidence()` |
 | ESP-NOW transport | `OnDataRecv() / esp_now_send()` |
+
