@@ -19,75 +19,61 @@ ITAC-K is a distributed control architecture designed for physical edge nodes (e
 
 ## Architecture
 ### System Flow Diagram
-`mermaid
-graph TD
-    classDef hardware fill:#f3f4f6,stroke:#6b7280,stroke-width:2px;
-    classDef logic fill:#eff6ff,stroke:#3b82f6,stroke-width:2px;
-    classDef action fill:#fdf4ff,stroke:#d946ef,stroke-width:2px;
-    classDef swarm fill:#f0fdf4,stroke:#22c55e,stroke-width:2px;
-
-    subgraph Physical Edge Node
-        S[Ultrasonic Sensors]:::hardware --> |Raw Signal| Pre[Majority Debounce]:::hardware
-        Pre --> |t, state| V[Six-State Volatility Engine]:::logic
+```mermaid
+flowchart TB
+    subgraph edgenode["Edge Node (ESP32)"]
+        direction LR
+        subgraph sensing["Sensing Layer"]
+            US["Ultrasonic Sensors<br/><i>Raw distance mapping</i>"]
+            MD[("Slot State<br/><i>Empty / Occupied</i>")]
+            US --> MD
+        end
+        subgraph state_engine["Recursive State Engine (O(1))"]
+            VE["Volatility Engine<br/><i>Dispersion, Churn, Drift</i>"]
+            PR["Predictive Reliability<br/><i>Error, Bias, Calibration</i>"]
+            PA["Policy-Admissibility<br/><i>Confidence bounds overlap</i>"]
+            UD["Uncertainty Debt<br/><i>Accumulated decision risk</i>"]
+            
+            MD --> VE
+            VE --> PR
+            PR --> PA
+            PA --> UD
+        end
     end
 
-    subgraph ITAC-K Core Logic
-        V --> |V_env, kinematics| P[Predictive Reliability]:::logic
-        P --> |e_t, b_t, c_t| A[Policy-Admissibility State]:::logic
-        A --> |p_ij, intervals| D[Uncertainty Debt Tracker]:::logic
-        D --> |D_eff| Arb{Information Arbitrator}:::logic
+    subgraph arbitration["Action Arbitration"]
+        direction LR
+        EXP["Exploit<br/><i>Direct Allocation</i>"]
+        LP["Local Probe<br/><i>Physical Evidence</i>"]
+        RS["Remote Substitute<br/><i>Peer Evidence</i>"]
+        
+        UD --> EXP
+        UD --> LP
+        UD --> RS
     end
 
-    subgraph Action Arbitration
-        Arb -->|Confident| E[1. Exploit: Allocate]:::action
-        Arb -->|Boundary Overlap| L[2. Local Physical Probe]:::action
-        Arb -->|Peer Available| R[3. Remote Substitute]:::action
+    subgraph swarm["Distributed Swarm (ESP-NOW)"]
+        direction LR
+        PEER["Peer Nodes<br/><i>Broadcast certificates</i>"]
+        QG{"Qualification Gate<br/><i>Context, Freshness, Regime</i>"}
+        
+        RS -.-> PEER
+        PEER --> QG
     end
 
-    subgraph ESP-NOW Swarm
-        R -.-> |Context Request| Swarm((Peer Nodes)):::swarm
-        Swarm -.-> |Evidence Certificate| Q{Qualification Gate}:::swarm
-        Q -->|Pass: Sim > 0.80| Accept[Bayesian Update]:::logic
-        Q -->|Fail| Discard[Discard]:::hardware
-    end
+    BU[("Bayesian Update<br/><i>Update admissibility limits</i>")]
 
-    L --> Accept
-    E --> Accept
-    Accept --> |Recursive Feedback| V
-`
+    QG -->|Pass| BU
+    QG -.->|Reject| DISCARD["Discard<br/><i>Prevent mismatch</i>"]
+    LP --> BU
+    EXP --> BU
+    BU -->|Recursive feedback| VE
 
-The core system is built on bounded recursive state updates (with respect to stream length) and operates through:
-1. **Six-State Volatility Engine** ($V_{env}$)
-2. **Predictive Reliability State**
-3. **Policy-Admissibility Relation**
-4. **Boundary-Directed Evidence Acquisition**
-5. **Qualified Remote Evidence**
-6. **Uncertainty Debt Tracking**
-
-## Experimental Question & Protocol
-**Protocol:** 100-seed unseen adversarial evaluation suite (Seeds 100-199). 
-
-## Final Results
-| System | Mean Regret | Physical Probes | Recovery Delay | Bad Aggressive Decisions |
-| :--- | :--- | :--- | :--- | :--- |
-| **ITAC-K (Frozen)** | **15,198.3** | **2,885.1** | **2.7s** | **148.2** |
-| *Unqualified Remote* | *15,059.7* | *2,639.8* | *0.9s* | *147.9\** |
-| **LocalOnly** | 19,304.3 | 4,403.2 | 7.4s | 176.0 |
-| **Generic VoI** | 20,035.6 | 4,500.0 | 8.9s | 177.3 |
-| **DualControl** | 26,188.0 | 386.7 | 78.8s | 49.8 |
-
-*\*Important Nuance on Unqualified Remote: Despite slightly lower aggregate regret in this specific benchmark, the unqualified variant exhibits severe mismatch-induced cascade failures during adversarial contexts and therefore does not satisfy the intended robustness criterion. The strict Context Equivalence Gate in ITAC-K is a mandatory safety mechanism.*
-
-## Ablations & Key Findings
-*   **Safe Remote Substitution:** Outperformed LocalOnly by filtering poisoned/mismatched swarm data.
-*   **Boundary-Targeted Probing:** Outperformed the implemented Generic VoI baseline by focusing local probes strictly on overlapping policy confidence intervals.
-
-## Limitations (Failure Envelope)
-*   **Synchronized Spoofing:** ITAC-K lacks cryptographic spoofing filters. If malicious peers forge perfectly matching context vectors, poisoned data passes the gate.
-*   **Hyper-Volatility Limit:** If the environment transitions faster than the sum of probe execution and propagation delays, uncertainty debt compounds uncontrollably.
-
-## Reproduce the Results
-A fresh environment can reproduce the reported benchmark using the pinned dependencies and frozen configuration, subject to normal numerical/platform variation:
+    style edgenode fill:#1a1a2e,stroke:#16213e,color:#eee
+    style arbitration fill:#0f3460,stroke:#16213e,color:#eee
+    style swarm fill:#16213e,stroke:#22c55e,color:#eee
+    style sensing fill:#1a1a2e,stroke:#e94560,color:#eee
+    style state_engine fill:#1a1a2e,stroke:#3b82f6,color:#eee
 ```bash
 pip install -r requirements.txt
 python benchmarks/run_benchmark.py --config configs/final_frozen.json --seeds 100-199
@@ -99,5 +85,6 @@ python benchmarks/run_benchmark.py --config configs/final_frozen.json --seeds 10
 *   `/configs/` - The comprehensive, frozen benchmark parameters.
 *   `/reports/` - Detailed ablation, complexity, and patent-evidence documentation.
 *   `/results/final/` - The raw CSV/PNG outputs from the final evaluation.
+
 
 
