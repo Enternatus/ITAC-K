@@ -1,46 +1,66 @@
 # ITAC-K Architecture
 
-![ITAC-K Architecture Diagram](../figures/ITAC_K_Architecture_Flow.jpg)
-
-
+<div align="center">
+  <img src="../figures/ITAC_K_Architecture_Flow.jpg" alt="ITAC-K Architecture Diagram" width="100%" />
+</div>
 
 ### System Flow Diagram
-`mermaid
-graph TD
-    classDef hardware fill:#f3f4f6,stroke:#6b7280,stroke-width:2px;
-    classDef logic fill:#eff6ff,stroke:#3b82f6,stroke-width:2px;
-    classDef action fill:#fdf4ff,stroke:#d946ef,stroke-width:2px;
-    classDef swarm fill:#f0fdf4,stroke:#22c55e,stroke-width:2px;
-
-    subgraph Physical Edge Node
-        S[Ultrasonic Sensors]:::hardware --> |Raw Signal| Pre[Majority Debounce]:::hardware
-        Pre --> |t, state| V[Six-State Volatility Engine]:::logic
+```mermaid
+flowchart TB
+    subgraph edgenode["Edge Node (ESP32)"]
+        direction LR
+        subgraph sensing["Sensing Layer"]
+            US["Ultrasonic Sensors<br/><i>Raw distance mapping</i>"]
+            MD[("Slot State<br/><i>Empty / Occupied</i>")]
+            US --> MD
+        end
+        subgraph state_engine["Recursive State Engine (O(1))"]
+            VE["Volatility Engine<br/><i>Dispersion, Churn, Drift</i>"]
+            PR["Predictive Reliability<br/><i>Error, Bias, Calibration</i>"]
+            PA["Policy-Admissibility<br/><i>Confidence bounds overlap</i>"]
+            UD["Uncertainty Debt<br/><i>Accumulated decision risk</i>"]
+            
+            MD --> VE
+            VE --> PR
+            PR --> PA
+            PA --> UD
+        end
     end
 
-    subgraph ITAC-K Core Logic
-        V --> |V_env, kinematics| P[Predictive Reliability]:::logic
-        P --> |e_t, b_t, c_t| A[Policy-Admissibility State]:::logic
-        A --> |p_ij, intervals| D[Uncertainty Debt Tracker]:::logic
-        D --> |D_eff| Arb{Information Arbitrator}:::logic
+    subgraph arbitration["Action Arbitration"]
+        direction LR
+        EXP["Exploit<br/><i>Direct Allocation</i>"]
+        LP["Local Probe<br/><i>Physical Evidence</i>"]
+        RS["Remote Substitute<br/><i>Peer Evidence</i>"]
+        
+        UD --> EXP
+        UD --> LP
+        UD --> RS
     end
 
-    subgraph Action Arbitration
-        Arb -->|Confident| E[1. Exploit: Allocate]:::action
-        Arb -->|Boundary Overlap| L[2. Local Physical Probe]:::action
-        Arb -->|Peer Available| R[3. Remote Substitute]:::action
+    subgraph swarm["Distributed Swarm (ESP-NOW)"]
+        direction LR
+        PEER["Peer Nodes<br/><i>Broadcast certificates</i>"]
+        QG{"Qualification Gate<br/><i>Context, Freshness, Regime</i>"}
+        
+        RS -.-> PEER
+        PEER --> QG
     end
 
-    subgraph ESP-NOW Swarm
-        R -.-> |Context Request| Swarm((Peer Nodes)):::swarm
-        Swarm -.-> |Evidence Certificate| Q{Qualification Gate}:::swarm
-        Q -->|Pass: Sim > 0.80| Accept[Bayesian Update]:::logic
-        Q -->|Fail| Discard[Discard]:::hardware
-    end
+    BU[("Bayesian Update<br/><i>Update admissibility limits</i>")]
 
-    L --> Accept
-    E --> Accept
-    Accept --> |Recursive Feedback| V
-`
+    QG -->|Pass| BU
+    QG -.->|Reject| DISCARD["Discard<br/><i>Prevent mismatch</i>"]
+    LP --> BU
+    EXP --> BU
+    BU -->|Recursive feedback| VE
+
+    style edgenode fill:#1a1a2e,stroke:#16213e,color:#eee
+    style arbitration fill:#0f3460,stroke:#16213e,color:#eee
+    style swarm fill:#16213e,stroke:#22c55e,color:#eee
+    style sensing fill:#1a1a2e,stroke:#e94560,color:#eee
+    style state_engine fill:#1a1a2e,stroke:#3b82f6,color:#eee
+```
 
 ## Mechanism Status Tracker
 *   **Volatility Engine:** ACTIVE + VALIDATED
@@ -65,6 +85,3 @@ graph TD
 | Remote certificate | `struct PeerEvidence` |
 | Equivalence Gate | `qualifyEvidence()` |
 | ESP-NOW transport | `OnDataRecv() / esp_now_send()` |
-
-
-
