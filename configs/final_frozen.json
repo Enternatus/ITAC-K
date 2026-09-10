@@ -1,0 +1,6 @@
+{
+  "transfer_threshold": 0.80,
+  "spi_margin": 0.15,
+  "hysteresis": false,
+  "WARNING": "THIS CONFIGURATION DEFINES THE FINAL FROZEN ITAC-K CHAMPION. DO NOT MODIFY FOR REPORTED RESULTS."
+}
