@@ -5,7 +5,7 @@ import path from 'node:path'
 
 import siteConfiguration from './.figma/make/site.json'
 
-// Vite config — https://vitejs.dev/config/
+// Vite config â€” https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
@@ -31,8 +31,8 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
-      port: parseInt(process.env.PORT || '8443'),
-      strictPort: true,
+      port: parseInt(process.env.PORT || '5180'),
+      strictPort: false,
       watch: {
         ignored: [
           '**/.figma/**',
@@ -41,7 +41,7 @@ export default defineConfig(({ mode }) => {
     },
     preview: {
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
-      port: parseInt(process.env.PORT || '8443'),
+      port: parseInt(process.env.PORT || '5180'),
     },
   }
 })

@@ -118,7 +118,7 @@ cd dashboard
 npm install
 npm run dev
 `
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open [http://localhost:5180](http://localhost:5180) in your browser.
 
 *Note on Data Source: By default, the dashboard executes with the decoupled MockProvider generating live synthetic telemetry, explicitly labeled in the UI as **SIMULATION (MOCK DATA)** to prevent confusion with physical hardware. It is architecturally decoupled to switch to LiveProvider when connected to physical ESP32 gateway nodes.*
 
