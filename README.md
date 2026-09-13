@@ -109,7 +109,21 @@ pip install -r requirements.txt
 python benchmarks/run_benchmark.py --config configs/final_frozen.json --seeds 100-199
 ```
 
+
+## Interactive Web Dashboard (Control Room)
+The repository includes a dedicated real-time control room dashboard built with React 19, Vite, and Tailwind CSS v4, visualizing the 5 core ITAC-K operating screens (Overview, Decision Detail, Telemetry, History, Performance):
+
+`ash
+cd dashboard
+npm install
+npm run dev
+`
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+*Note on Data Source: By default, the dashboard executes with the decoupled MockProvider generating live synthetic telemetry, explicitly labeled in the UI as **SIMULATION (MOCK DATA)** to prevent confusion with physical hardware. It is architecturally decoupled to switch to LiveProvider when connected to physical ESP32 gateway nodes.*
+
 ## Repository Structure
+*   /dashboard/ - Real-time React + TypeScript control room dashboard.
 *   `/src/hardware/` - ESP32 C++ implementations (Proof of edge-capability).
 *   `/benchmarks/` - Core Python simulation harness and baselines.
 *   `/configs/` - The comprehensive, frozen benchmark parameters.

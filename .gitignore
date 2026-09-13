@@ -7,3 +7,7 @@ venv/
 *.log
 temporary/
 
+
+dashboard/node_modules/
+dashboard/dist/
+
