@@ -7,7 +7,8 @@ import type {
   SparkPoint,
   BoundaryState,
   PerformancePoint,
-} from '../data';
+  DataSourceState,
+} from '../types/itac';
 import {
   generateSlots,
   generatePeers,
@@ -34,7 +35,7 @@ export interface ITACDataContextType {
   perfData: PerformancePoint[];
   connected: boolean;
   lastUpdate: number;
-  isMock: boolean;
+  dataSource: DataSourceState;
   logPaused: boolean;
   setLogPaused: (paused: boolean) => void;
 }
@@ -54,7 +55,7 @@ interface ProviderProps {
 }
 
 // ==========================================
-// 1. MOCK PROVIDER (Simulated Live Engine)
+// 1. MOCK PROVIDER (LOCAL_MOCK)
 // ==========================================
 export function MockProvider({ children }: ProviderProps) {
   const [slots, setSlots] = useState<SlotData[]>(() => generateSlots());
@@ -131,7 +132,7 @@ export function MockProvider({ children }: ProviderProps) {
     perfData,
     connected,
     lastUpdate,
-    isMock: true,
+    dataSource: 'LOCAL_MOCK',
     logPaused,
     setLogPaused,
   };
@@ -140,27 +141,30 @@ export function MockProvider({ children }: ProviderProps) {
 }
 
 // ==========================================
-// 2. LIVE PROVIDER (ESP32 Gateway / WebSocket Skeleton)
+// 2. LIVE WEBSOCKET PROVIDER
 // ==========================================
-export function LiveProvider({ children, wsUrl = 'ws://localhost:8000/ws' }: ProviderProps & { wsUrl?: string }) {
+export function LiveWebSocketProvider({ children, wsUrl = 'ws://localhost:8000/ws/telemetry' }: ProviderProps & { wsUrl?: string }) {
   const [slots, setSlots] = useState<SlotData[]>(() => generateSlots());
   const [peers, setPeers] = useState<PeerNode[]>([]);
   const [decision, setDecision] = useState<DecisionState>(() => generateDecision());
   const [prevDecision, setPrevDecision] = useState<DecisionState | null>(null);
   const [events, setEvents] = useState<EventEntry[]>([]);
-  const [volatilitySpark, setVolatilitySpark] = useState<SparkPoint[]>([]);
-  const [debtSpark, setDebtSpark] = useState<SparkPoint[]>([]);
+  const [volatilitySpark, setVolatilitySpark] = useState<SparkPoint[]>(() => generateSparkline());
+  const [debtSpark, setDebtSpark] = useState<SparkPoint[]>(() => generateSparkline());
   const [boundaryHistory, setBoundaryHistory] = useState<BoundaryState[]>([]);
   const [perfData] = useState<PerformancePoint[]>(() => generatePerformanceData(12));
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const [dataSource, setDataSource] = useState<DataSourceState>('SIMULATED_GATEWAY');
   const [logPaused, setLogPaused] = useState(false);
 
   useEffect(() => {
     let ws: WebSocket | null = null;
     let reconnectTimeout: any = null;
+    let isUnmounted = false;
 
     function connect() {
+      if (isUnmounted) return;
       try {
         ws = new WebSocket(wsUrl);
         ws.onopen = () => {
@@ -178,8 +182,10 @@ export function LiveProvider({ children, wsUrl = 'ws://localhost:8000/ws' }: Pro
             if (data.slots) setSlots(data.slots);
             if (data.peers) setPeers(data.peers);
             if (data.event) setEvents(prev => [data.event, ...prev].slice(0, 200));
-            if (data.volatility) setVolatilitySpark(prev => [...prev.slice(1), data.volatility]);
-            if (data.debt) setDebtSpark(prev => [...prev.slice(1), data.debt]);
+            if (data.volatilitySpark) setVolatilitySpark(data.volatilitySpark);
+            if (data.debtSpark) setDebtSpark(data.debtSpark);
+            if (data.boundaryHistory) setBoundaryHistory(data.boundaryHistory);
+            if (data.dataSource) setDataSource(data.dataSource);
             setLastUpdate(Date.now());
           } catch (err) {
             console.error('Failed to parse incoming ITAC live payload:', err);
@@ -193,7 +199,7 @@ export function LiveProvider({ children, wsUrl = 'ws://localhost:8000/ws' }: Pro
           setConnected(false);
           ws?.close();
         };
-      } catch (e) {
+      } catch {
         setConnected(false);
         reconnectTimeout = setTimeout(connect, 3000);
       }
@@ -202,6 +208,7 @@ export function LiveProvider({ children, wsUrl = 'ws://localhost:8000/ws' }: Pro
     connect();
 
     return () => {
+      isUnmounted = true;
       ws?.close();
       clearTimeout(reconnectTimeout);
     };
@@ -221,7 +228,7 @@ export function LiveProvider({ children, wsUrl = 'ws://localhost:8000/ws' }: Pro
     perfData,
     connected,
     lastUpdate,
-    isMock: false,
+    dataSource,
     logPaused,
     setLogPaused,
   };
@@ -230,13 +237,21 @@ export function LiveProvider({ children, wsUrl = 'ws://localhost:8000/ws' }: Pro
 }
 
 // ==========================================
-// 3. MASTER ITACDataProvider
+// 3. ROOT ITACDataProvider
 // ==========================================
-export function ITACDataProvider({ children, initialMode = 'mock' }: { children: React.ReactNode; initialMode?: ProviderMode }) {
-  const [mode, setMode] = useState<ProviderMode>(initialMode);
+export function ITACDataProvider({ children }: { children: React.ReactNode }) {
+  // Read mode from URL if provided (e.g. ?source=live or ?source=mock), default to 'mock'
+  const [mode, setMode] = useState<ProviderMode>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const src = params.get('source');
+      if (src === 'live' || src === 'gateway') return 'live';
+    }
+    return 'mock';
+  });
 
   if (mode === 'live') {
-    return <LiveProvider>{children}</LiveProvider>;
+    return <LiveWebSocketProvider>{children}</LiveWebSocketProvider>;
   }
 
   return <MockProvider>{children}</MockProvider>;
